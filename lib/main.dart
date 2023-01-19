@@ -1,115 +1,211 @@
 import 'package:flutter/material.dart';
+// import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  // await Hive.deleteBoxFromDisk('shopping_box');
+  await Hive.openBox('shopping_box');
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'POC Offline First',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.green,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+// Home Page
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomePageState extends State<HomePage> {
+  List<Map<String, dynamic>> _items = [];
 
-  void _incrementCounter() {
+  final _shoppingBox = Hive.box('shopping_box');
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshItems(); // Load data when app starts
+  }
+
+  // Get all items from the database
+  void _refreshItems() {
+    print(_shoppingBox);
+
+    final data = _shoppingBox.keys.map((key) {
+      final value = _shoppingBox.get(key);
+      return {"key": key, "name": value["name"], "quantity": value['quantity']};
+    }).toList();
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _items = data.reversed.toList();
+      // we use "reversed" to sort items in order from the latest to the oldest
     });
+  }
+
+  // Create new item
+  Future<void> _createItem(Map<String, dynamic> newItem) async {
+    await _shoppingBox.add(newItem);
+    _refreshItems(); // update the UI
+  }
+
+  // Retrieve a single item from the database by using its key
+  // Our app won't use this function but I put it here for your reference
+  Map<String, dynamic> _readItem(int key) {
+    final item = _shoppingBox.get(key);
+    return item;
+  }
+
+  // Update a single item
+  Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
+    await _shoppingBox.put(itemKey, item);
+    _refreshItems(); // Update the UI
+  }
+
+  // Delete a single item
+  Future<void> _deleteItem(int itemKey) async {
+    await _shoppingBox.delete(itemKey);
+    _refreshItems(); // update the UI
+
+    // Display a snackbar
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Um item foi removido')));
+  }
+
+  // TextFields' controllers
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
+
+  // This function will be triggered when the floating button is pressed
+  // It will also be triggered when you want to update an item
+  void _showForm(BuildContext ctx, int? itemKey) async {
+    // itemKey == null -> create new item
+    // itemKey != null -> update an existing item
+
+    if (itemKey != null) {
+      final existingItem = _items.firstWhere((element) => element['key'] == itemKey);
+      _nameController.text = existingItem['name'];
+      _quantityController.text = existingItem['quantity'];
+    }
+
+    showModalBottomSheet(
+        context: ctx,
+        elevation: 5,
+        isScrollControlled: true,
+        builder: (_) => Container(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, top: 15, left: 15, right: 15),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(hintText: 'Name'),
+                  ),
+                  const SizedBox(
+                    height: 10,
+                  ),
+                  TextField(
+                    controller: _quantityController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(hintText: 'Quantity'),
+                  ),
+                  const SizedBox(
+                    height: 20,
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      // Save new item
+                      if (itemKey == null) {
+                        _createItem({"name": _nameController.text, "quantity": _quantityController.text});
+                      }
+
+                      // update an existing item
+                      if (itemKey != null) {
+                        _updateItem(itemKey,
+                            {'name': _nameController.text.trim(), 'quantity': _quantityController.text.trim()});
+                      }
+
+                      // Clear the text fields
+                      _nameController.text = '';
+                      _quantityController.text = '';
+
+                      Navigator.of(context).pop(); // Close the bottom sheet
+                    },
+                    child: Text(itemKey == null ? 'Adicionar' : 'Atualizar'),
+                  ),
+                  const SizedBox(
+                    height: 15,
+                  )
+                ],
+              ),
+            ));
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('POC Offline First'),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
+      body: _items.isEmpty
+          ? const Center(
+              child: Text(
+                'No Data',
+                style: TextStyle(fontSize: 30),
+              ),
+            )
+          : ListView.builder(
+              // the list of items
+              itemCount: _items.length,
+              itemBuilder: (_, index) {
+                final currentItem = _items[index];
+                return Card(
+                  color: Colors.orange.shade100,
+                  margin: const EdgeInsets.all(10),
+                  elevation: 3,
+                  child: ListTile(
+                      title: Text(currentItem['name']),
+                      subtitle: Text(currentItem['quantity'].toString()),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Edit button
+                          IconButton(
+                              icon: const Icon(Icons.edit), onPressed: () => _showForm(context, currentItem['key'])),
+                          // Delete button
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => _deleteItem(currentItem['key']),
+                          ),
+                        ],
+                      )),
+                );
+              }),
+      // Add new item button
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
+        onPressed: () => _showForm(context, null),
         child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
     );
   }
 }
