@@ -1,6 +1,9 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 // import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:poc_offline_first/utils/custom_dio.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,13 +47,21 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    getAllFruits();
     _refreshItems(); // Load data when app starts
+  }
+
+  void getAllFruits() async {
+    final response = await CustomDio().getAll('/get-all');
+    var fruits = response.data;
+
+    fruits.forEach((fruit) {
+      _createItem({"name": fruit['name'], "quantity": fruit['quantity']});
+    });
   }
 
   // Get all items from the database
   void _refreshItems() {
-    print(_shoppingBox);
-
     final data = _shoppingBox.keys.map((key) {
       final value = _shoppingBox.get(key);
       return {"key": key, "name": value["name"], "quantity": value['quantity']};
