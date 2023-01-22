@@ -3,7 +3,8 @@ import 'dart:ffi';
 import 'package:flutter/material.dart';
 // import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:poc_offline_first/utils/custom_dio.dart';
+import 'package:poc_offline_first/controller/fruits_controller.dart';
+import 'package:poc_offline_first/services/custom_dio.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,31 +42,24 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _items = [];
+  final FruitController _fruitController = FruitController();
 
   final _shoppingBox = Hive.box('shopping_box');
 
   @override
   void initState() {
     super.initState();
-    getAllFruits();
     _refreshItems(); // Load data when app starts
   }
 
-  void getAllFruits() async {
-    final response = await CustomDio().getAll('/get-all');
-    var fruits = response.data;
-
-    fruits.forEach((fruit) {
-      _createItem({"name": fruit['name'], "quantity": fruit['quantity']});
-    });
-  }
-
   // Get all items from the database
-  void _refreshItems() {
-    final data = _shoppingBox.keys.map((key) {
-      final value = _shoppingBox.get(key);
-      return {"key": key, "name": value["name"], "quantity": value['quantity']};
-    }).toList();
+  void _refreshItems() async {
+    // final data = _shoppingBox.keys.map((key) {
+    //   final value = _shoppingBox.get(key);
+    //   return {"key": key, "name": value["name"], "quantity": value['quantity']};
+    // }).toList();
+
+    var data = await _fruitController.getAllItems('/get-all');
 
     setState(() {
       _items = data.reversed.toList();
@@ -75,7 +69,8 @@ class _HomePageState extends State<HomePage> {
 
   // Create new item
   Future<void> _createItem(Map<String, dynamic> newItem) async {
-    await _shoppingBox.add(newItem);
+    // await _shoppingBox.add(newItem);
+    await _fruitController.createItem('/post', newItem);
     _refreshItems(); // update the UI
   }
 
@@ -88,13 +83,23 @@ class _HomePageState extends State<HomePage> {
 
   // Update a single item
   Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
-    await _shoppingBox.put(itemKey, item);
+    // await _shoppingBox.put(itemKey, item);
+    Map<String, dynamic> fruit = {
+      'id': itemKey,
+      'name': item['name'],
+      'quantity': item['quantity'],
+      // 'quantity': int.parse(item['quantity']),
+    };
+
+    await _fruitController.updateItem('/put', itemKey, fruit);
     _refreshItems(); // Update the UI
   }
 
   // Delete a single item
   Future<void> _deleteItem(int itemKey) async {
-    await _shoppingBox.delete(itemKey);
+    // await _shoppingBox.delete(itemKey);
+    await _fruitController.deleteItem('/delete', itemKey);
+
     _refreshItems(); // update the UI
 
     // Display a snackbar
@@ -113,9 +118,14 @@ class _HomePageState extends State<HomePage> {
     // itemKey != null -> update an existing item
 
     if (itemKey != null) {
-      final existingItem = _items.firstWhere((element) => element['key'] == itemKey);
-      _nameController.text = existingItem['name'];
-      _quantityController.text = existingItem['quantity'];
+      // final existingItem = _items.firstWhere((element) => element['key'] == itemKey);
+      //       _nameController.text = existingItem['name'];
+      // _quantityController.text = existingItem['quantity'];
+
+      final Map<String, dynamic> fruit = await _fruitController.getItemById(itemKey);
+
+      _nameController.text = fruit['name'];
+      _quantityController.text = fruit['quantity'].toString();
     }
 
     showModalBottomSheet(
@@ -202,11 +212,11 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           // Edit button
                           IconButton(
-                              icon: const Icon(Icons.edit), onPressed: () => _showForm(context, currentItem['key'])),
+                              icon: const Icon(Icons.edit), onPressed: () => _showForm(context, currentItem['id'])),
                           // Delete button
                           IconButton(
                             icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteItem(currentItem['key']),
+                            onPressed: () => _deleteItem(currentItem['id']),
                           ),
                         ],
                       )),
