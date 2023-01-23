@@ -27,8 +27,8 @@ class CustomDio {
     return response;
   }
 
-  Future<Response> createItemFromRemote(String path, dynamic data) async {
-    Response response = await dio.post(path, data: data);
+  Future<Response> createItemFromRemote(String path, dynamic fruit) async {
+    Response response = await dio.post(path, data: fruit);
     return response;
   }
 
@@ -38,8 +38,18 @@ class CustomDio {
     return response;
   }
 
-  Future<Response> deleteItemFromRemote(String path, int id) async {
-    Response response = await dio.delete("$path/?id=$id");
+  Future<Response> deleteItemFromRemote(String path, String id) async {
+    late Response response;
+    int fruitId = int.parse(id);
+
+    var pathSplit = path.split('?');
+
+    if (pathSplit[pathSplit.length - 1] == 'id=$id') {
+      response = await dio.delete("${pathSplit[0]}?id=$fruitId");
+    } else {
+      response = await dio.delete("$path/?id=$fruitId");
+    }
+
     return response;
   }
 }

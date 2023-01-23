@@ -1,17 +1,17 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
 // import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:poc_offline_first/controller/fruits_controller.dart';
-import 'package:poc_offline_first/services/custom_dio.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
-  // await Hive.deleteBoxFromDisk('shopping_box');
+  await Hive.deleteBoxFromDisk('shopping_box');
+  await Hive.deleteBoxFromDisk('transaction_box');
+
   await Hive.openBox('shopping_box');
+  await Hive.openBox('transaction_box');
 
   runApp(const MyApp());
 }
@@ -44,12 +44,19 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _items = [];
   final FruitController _fruitController = FruitController();
 
-  final _shoppingBox = Hive.box('shopping_box');
+  // final _shoppingBox = Hive.box('shopping_box');
 
   @override
   void initState() {
     super.initState();
     _refreshItems(); // Load data when app starts
+  }
+
+  @override
+  void dispose() {
+    // Closes all Hive boxes
+    Hive.close();
+    super.dispose();
   }
 
   // Get all items from the database
@@ -76,10 +83,10 @@ class _HomePageState extends State<HomePage> {
 
   // Retrieve a single item from the database by using its key
   // Our app won't use this function but I put it here for your reference
-  Map<String, dynamic> _readItem(int key) {
-    final item = _shoppingBox.get(key);
-    return item;
-  }
+  // Map<String, dynamic> _readItem(int key) {
+  //   final item = _shoppingBox.get(key);
+  //   return item;
+  // }
 
   // Update a single item
   Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
@@ -96,7 +103,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Delete a single item
-  Future<void> _deleteItem(int itemKey) async {
+  Future<void> _deleteItem(String itemKey) async {
     // await _shoppingBox.delete(itemKey);
     await _fruitController.deleteItem('/delete', itemKey);
 
@@ -216,7 +223,7 @@ class _HomePageState extends State<HomePage> {
                           // Delete button
                           IconButton(
                             icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteItem(currentItem['id']),
+                            onPressed: () => _deleteItem(currentItem['id'].toString()),
                           ),
                         ],
                       )),

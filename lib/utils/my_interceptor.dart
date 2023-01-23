@@ -31,5 +31,6 @@ class MyInterceptor implements InterceptorsWrapper {
     */
     print("Erro da request: ${err.requestOptions.path} com ${err.requestOptions.method}}");
     print("Oops, deu erro: ${err.message}");
+    print("Erro: ${err.error?.message}");
   }
 }

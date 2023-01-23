@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:ffi';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:poc_offline_first/services/custom_dio.dart';
+import 'package:poc_offline_first/services/custom_local.dart';
 
 class FruitController {
   final CustomDio _customDio = CustomDio();
+  final CustomLocal _customLocal = CustomLocal();
+
   // Check internet connection
   Future<bool> checkInternetConnection() async {
     ConnectivityResult connectivityResult = await (Connectivity().checkConnectivity());
@@ -30,8 +34,8 @@ class FruitController {
 
       return fruits;
     } else {
-      // return await getAllFromLocal();
-      return [];
+      var fruits = _customLocal.getAllFromLocal();
+      return fruits;
     }
   }
 
@@ -50,12 +54,46 @@ class FruitController {
   // Create item if connected from api else from local
   Future<int> createItem(String path, Map<String, dynamic> item) async {
     bool isConnected = await checkInternetConnection();
+
+    Map<String, dynamic> fruit = {
+      'id': '${DateTime.now().millisecondsSinceEpoch}',
+      'createdAt': DateTime.now().toString(),
+      'updatedAt': DateTime.now().toString(),
+      'name': item['name'],
+      'quantity': item['quantity'],
+    };
+
     if (isConnected) {
-      Response response = await _customDio.createItemFromRemote(path, item);
+      // Faz o sync com o remoto
+      await syncTransactions();
+
+      // envia dados atual para remoto
+      Map<String, dynamic> currentPayload = {...fruit};
+      currentPayload.remove('id');
+
+      Response response = await _customDio.createItemFromRemote(path, currentPayload);
+
+      // envia dados atual tbm para local com id do remoto
+      await _customLocal.createItemFromLocal({...fruit, 'id': response.data.toString()});
+
       return response.data as int;
     } else {
-      // return await createFromLocal(item);
-      return 0;
+      int keyItem = await _customLocal.createItemFromLocal(fruit);
+
+      Map<String, dynamic> transaction = {
+        'id': '${fruit["name"]}_${DateTime.now().millisecondsSinceEpoch}',
+        'path': '/post',
+        'verb': 'POST',
+        'createdAt': DateTime.now().toString(),
+        'updatedAt': DateTime.now().toString(),
+        'isSynced': false,
+        'data': {...fruit, 'id': fruit["id"]},
+        'keyBox': keyItem,
+      };
+
+      await _customLocal.createTransaction(transaction);
+
+      return keyItem;
     }
   }
 
@@ -72,14 +110,77 @@ class FruitController {
   }
 
   // Delete item if connected from api else from local
-  Future<String> deleteItem(String path, int id) async {
+  Future<String> deleteItem(String path, String id) async {
     bool isConnected = await checkInternetConnection();
+
     if (isConnected) {
+      await syncTransactions();
+
       Response response = await _customDio.deleteItemFromRemote(path, id);
       return response.data as String;
     } else {
-      // return await deleteFromLocal(id);
-      return "Success";
+      var res = await _customLocal.deleteItemFromLocal(id);
+      return res;
+    }
+  }
+
+  // verify if exists transaction to sync and make it based on verb
+  Future<void> syncTransactions() async {
+    // pega dados locais
+    var listTransactions = _customLocal.getTransactionsByAttribute<String, bool>("isSynced", false);
+
+    // envia dados locais para remoto
+    if (listTransactions.isNotEmpty) {
+      var listPOST = listTransactions.where((element) => element['verb'] == 'POST').toList();
+      var listPUT = listTransactions.where((element) => element['verb'] == 'PUT').toList();
+      var listDELETE = listTransactions.where((element) => element['verb'] == 'DEL').toList();
+
+      if (listPOST.isNotEmpty) {
+        for (var transaction in listPOST) {
+          // if (transaction['verb'] == 'POST') {
+          // post cada item para api
+          Map<String, dynamic> payload = {...transaction['data']};
+          payload.remove('id');
+
+          Response resp = await _customDio.createItemFromRemote(transaction['path'], payload);
+
+          // atualiza id local com id gerado no remoto (response.data)
+          await _customLocal
+              .updateItemFromLocal(transaction['keyBox'], {...transaction['data'], 'id': resp.data.toString()});
+
+          // atualiza isSynced para true
+          // await _customLocal.updateTransaction(transaction['id'], {
+          //   ...transaction,
+          //   'isSynced': true,
+          //   'data': {...transaction['data'], 'id': resp.data}
+          // });
+          // }
+        }
+      }
+
+      if (listPUT.isNotEmpty) {
+        for (var transaction in listPUT) {
+          // put cada item para api
+          await _customDio.updateItemFromRemote(transaction['path'], transaction['data']['id'], transaction['data']);
+
+          // TO-DO: Atualiza se o status da requisição acima for 200
+
+          // atualiza isSynced para true
+          await _customLocal.updateTransaction(transaction['id'], {...transaction, 'isSynced': true});
+        }
+      }
+
+      if (listDELETE.isNotEmpty) {
+        for (var transaction in listDELETE) {
+          // delete cada item para api
+          await _customDio.deleteItemFromRemote(transaction['path'], transaction['data']['id']);
+
+          // TO-DO: Deleta se o status da requisição acima for 200
+
+          // delete transaction
+          await _customLocal.deleteTransaction(transaction['id']);
+        }
+      }
     }
   }
 }
