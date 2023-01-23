@@ -7,8 +7,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
-  await Hive.deleteBoxFromDisk('shopping_box');
-  await Hive.deleteBoxFromDisk('transaction_box');
+  // await Hive.deleteBoxFromDisk('shopping_box');
+  // await Hive.deleteBoxFromDisk('transaction_box');
 
   await Hive.openBox('shopping_box');
   await Hive.openBox('transaction_box');
@@ -54,7 +54,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    // Closes all Hive boxes
     Hive.close();
     super.dispose();
   }
@@ -89,16 +88,13 @@ class _HomePageState extends State<HomePage> {
   // }
 
   // Update a single item
-  Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
-    // await _shoppingBox.put(itemKey, item);
+  Future<void> _updateItem(String itemKey, Map<String, dynamic> item) async {
     Map<String, dynamic> fruit = {
-      'id': itemKey,
       'name': item['name'],
       'quantity': item['quantity'],
-      // 'quantity': int.parse(item['quantity']),
     };
 
-    await _fruitController.updateItem('/put', itemKey, fruit);
+    await _fruitController.updateItem('/put', int.parse(itemKey), fruit);
     _refreshItems(); // Update the UI
   }
 
@@ -120,19 +116,14 @@ class _HomePageState extends State<HomePage> {
 
   // This function will be triggered when the floating button is pressed
   // It will also be triggered when you want to update an item
-  void _showForm(BuildContext ctx, int? itemKey) async {
+  void _showForm(BuildContext ctx, String? itemKey) async {
     // itemKey == null -> create new item
     // itemKey != null -> update an existing item
-
     if (itemKey != null) {
-      // final existingItem = _items.firstWhere((element) => element['key'] == itemKey);
-      //       _nameController.text = existingItem['name'];
-      // _quantityController.text = existingItem['quantity'];
-
       final Map<String, dynamic> fruit = await _fruitController.getItemById(itemKey);
 
-      _nameController.text = fruit['name'];
-      _quantityController.text = fruit['quantity'].toString();
+      _nameController.text = fruit.isNotEmpty ? fruit['name'] : _nameController.text;
+      _quantityController.text = fruit.isNotEmpty ? fruit['quantity'].toString() : _quantityController.text;
     }
 
     showModalBottomSheet(

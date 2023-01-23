@@ -40,14 +40,13 @@ class FruitController {
   }
 
   // Get by id if connected from api else from local
-  Future<Map<String, dynamic>> getItemById(int id) async {
+  Future<Map<String, dynamic>> getItemById(String id) async {
     bool isConnected = await checkInternetConnection();
     if (isConnected) {
-      Response response = await _customDio.getByIdFromRemote(id);
+      Response response = await _customDio.getByIdFromRemote(int.parse(id));
       return response.data as Map<String, dynamic>;
     } else {
-      // return await getByIdFromLocal(id);
-      return {};
+      return _customLocal.getByIdFromLocal(id);
     }
   }
 
@@ -61,6 +60,7 @@ class FruitController {
       'updatedAt': DateTime.now().toString(),
       'name': item['name'],
       'quantity': item['quantity'],
+      'isDeleted': false,
     };
 
     if (isConnected) {
@@ -81,6 +81,7 @@ class FruitController {
       int keyItem = await _customLocal.createItemFromLocal(fruit);
 
       Map<String, dynamic> transaction = {
+        'keyBoxItem': keyItem,
         'id': '${fruit["name"]}_${DateTime.now().millisecondsSinceEpoch}',
         'path': '/post',
         'verb': 'POST',
@@ -88,7 +89,6 @@ class FruitController {
         'updatedAt': DateTime.now().toString(),
         'isSynced': false,
         'data': {...fruit, 'id': fruit["id"]},
-        'keyBox': keyItem,
       };
 
       await _customLocal.createTransaction(transaction);
@@ -98,14 +98,17 @@ class FruitController {
   }
 
   // Update item if connected from api else from local
-  Future<Map<String, dynamic>> updateItem(String path, int id, Map<String, dynamic> item) async {
+  Future<void> updateItem(String path, int id, Map<String, dynamic> item) async {
     bool isConnected = await checkInternetConnection();
     if (isConnected) {
-      Response response = await _customDio.updateItemFromRemote(path, id, item);
-      return response.data as Map<String, dynamic>;
+      await syncTransactions();
+
+      await _customDio.updateItemFromRemote(path, id, item);
+      await _customLocal.updateItemLocal(id, item);
+
+      // return response.data as Map<String, dynamic>;
     } else {
-      // return await updateFromLocal(id, item);
-      return {};
+      return await _customLocal.updateItemLocal(id, item);
     }
   }
 
@@ -117,6 +120,8 @@ class FruitController {
       await syncTransactions();
 
       Response response = await _customDio.deleteItemFromRemote(path, id);
+      await _customLocal.deleteItemFromLocal(id);
+
       return response.data as String;
     } else {
       var res = await _customLocal.deleteItemFromLocal(id);
@@ -145,16 +150,8 @@ class FruitController {
           Response resp = await _customDio.createItemFromRemote(transaction['path'], payload);
 
           // atualiza id local com id gerado no remoto (response.data)
-          await _customLocal
-              .updateItemFromLocal(transaction['keyBox'], {...transaction['data'], 'id': resp.data.toString()});
-
-          // atualiza isSynced para true
-          // await _customLocal.updateTransaction(transaction['id'], {
-          //   ...transaction,
-          //   'isSynced': true,
-          //   'data': {...transaction['data'], 'id': resp.data}
-          // });
-          // }
+          await _customLocal.updateAllLocalFromRemote(
+              transaction['keyBoxItem'], {...transaction['data'], 'id': resp.data.toString()});
         }
       }
 
@@ -166,7 +163,7 @@ class FruitController {
           // TO-DO: Atualiza se o status da requisição acima for 200
 
           // atualiza isSynced para true
-          await _customLocal.updateTransaction(transaction['id'], {...transaction, 'isSynced': true});
+          await _customLocal.updateTransaction(transaction['id'], transaction);
         }
       }
 
@@ -179,6 +176,7 @@ class FruitController {
 
           // delete transaction
           await _customLocal.deleteTransaction(transaction['id']);
+          await _customLocal.deleteItemFromLocal(transaction['data']['id']);
         }
       }
     }

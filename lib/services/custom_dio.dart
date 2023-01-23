@@ -39,16 +39,9 @@ class CustomDio {
   }
 
   Future<Response> deleteItemFromRemote(String path, String id) async {
-    late Response response;
     int fruitId = int.parse(id);
 
-    var pathSplit = path.split('?');
-
-    if (pathSplit[pathSplit.length - 1] == 'id=$id') {
-      response = await dio.delete("${pathSplit[0]}?id=$fruitId");
-    } else {
-      response = await dio.delete("$path/?id=$fruitId");
-    }
+    Response response = await dio.delete("$path/?id=$fruitId");
 
     return response;
   }
