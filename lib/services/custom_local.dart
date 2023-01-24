@@ -117,7 +117,12 @@ class CustomLocal {
 
   // Delete a single item
   Future<String> deleteItemFromLocal(String itemKey) async {
-    var keyBoxItem = _shoppingBox.keys.firstWhere((element) => _shoppingBox.get(element)['id'] == itemKey);
+    var keyBoxItem = _shoppingBox.keys.firstWhere(
+      (element) => _shoppingBox.get(element)['id'] == itemKey,
+      orElse: () => null,
+    );
+    if (keyBoxItem == null) return "not_found";
+
     var fruit = _shoppingBox.get(keyBoxItem);
 
     // buscar as transações que tem esse item

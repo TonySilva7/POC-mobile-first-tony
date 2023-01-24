@@ -7,8 +7,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
-  // await Hive.deleteBoxFromDisk('shopping_box');
-  // await Hive.deleteBoxFromDisk('transaction_box');
+  await Hive.deleteBoxFromDisk('shopping_box');
+  await Hive.deleteBoxFromDisk('transaction_box');
 
   await Hive.openBox('shopping_box');
   await Hive.openBox('transaction_box');
