@@ -7,11 +7,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Hive.initFlutter();
-  await Hive.deleteBoxFromDisk('shopping_box');
-  await Hive.deleteBoxFromDisk('transaction_box');
 
-  await Hive.openBox('shopping_box');
-  await Hive.openBox('transaction_box');
+  // await Hive.deleteBoxFromDisk('fruits_table_box');
+  // await Hive.deleteBoxFromDisk('campaign_table_box');
+  // await Hive.deleteBoxFromDisk('sync_data_box');
+  // await Hive.deleteFromDisk();
+
+  await Hive.openBox('fruits_table_box');
+  await Hive.openBox('campaign_table_box');
+  await Hive.openBox('sync_data_box');
 
   runApp(const MyApp());
 }
@@ -44,12 +48,14 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _items = [];
   final FruitController _fruitController = FruitController();
 
-  // final _shoppingBox = Hive.box('shopping_box');
+  // final _fruitTableBox = Hive.box('fruits_table_box');
 
   @override
   void initState() {
     super.initState();
-    _refreshItems(); // Load data when app starts
+    _fruitController.syncTransactions().then(
+          (_) => _refreshItems(),
+        );
   }
 
   @override
@@ -59,13 +65,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Get all items from the database
-  void _refreshItems() async {
-    // final data = _shoppingBox.keys.map((key) {
-    //   final value = _shoppingBox.get(key);
-    //   return {"key": key, "name": value["name"], "quantity": value['quantity']};
-    // }).toList();
-
-    var data = await _fruitController.getAllItems('/get-all');
+  void _refreshItems() {
+    var data = _fruitController.getAllItems();
 
     setState(() {
       _items = data.reversed.toList();
@@ -75,17 +76,9 @@ class _HomePageState extends State<HomePage> {
 
   // Create new item
   Future<void> _createItem(Map<String, dynamic> newItem) async {
-    // await _shoppingBox.add(newItem);
     await _fruitController.createItem('/post', newItem);
     _refreshItems(); // update the UI
   }
-
-  // Retrieve a single item from the database by using its key
-  // Our app won't use this function but I put it here for your reference
-  // Map<String, dynamic> _readItem(int key) {
-  //   final item = _shoppingBox.get(key);
-  //   return item;
-  // }
 
   // Update a single item
   Future<void> _updateItem(String itemKey, Map<String, dynamic> item) async {
@@ -100,7 +93,6 @@ class _HomePageState extends State<HomePage> {
 
   // Delete a single item
   Future<void> _deleteItem(String itemKey) async {
-    // await _shoppingBox.delete(itemKey);
     await _fruitController.deleteItem('/delete', itemKey);
 
     _refreshItems(); // update the UI

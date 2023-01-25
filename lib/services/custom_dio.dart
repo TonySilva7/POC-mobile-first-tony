@@ -45,15 +45,15 @@ class CustomDio {
 
     return response;
   }
+
+  // Pega todos os dados na api a partir de uma data x e retorna uma lista de map para atualizar o banco local
+  Future<List<Map<String, dynamic>>> getAllFromRemoteByDate(String path, int lastSyncDate) async {
+    Response response = await dio.get("$path/?date=$lastSyncDate");
+    List<dynamic> list = response.data;
+
+    // map res which is a list of dynamic to a list of map
+    List<Map<String, dynamic>> fruits = list.map((e) => e as Map<String, dynamic>).toList();
+
+    return fruits;
+  }
 }
-
-
-
-  // void getAllFruits() async {
-  //   final response = await CustomDio().getAll('/get-all');
-  //   var fruits = response.data;
-
-  //   fruits.forEach((fruit) {
-  //     _createItem({"name": fruit['name'], "quantity": fruit['quantity']});
-  //   });
-  // }
