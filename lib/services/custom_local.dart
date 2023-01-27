@@ -1,20 +1,20 @@
 import 'package:hive/hive.dart';
 
 class CustomLocal {
-  final _fruitTableBox = Hive.box('fruits_table_box');
-  final _campaignTableBox = Hive.box('campaign_table_box');
+  final _fruitTableBox = Hive.box('FruitTable');
+  final _campaignTableBox = Hive.box('CampaignTable');
   final _syndDataBox = Hive.box('sync_data_box');
 
   final List<String> _listOpenBoxes = ['FruitTable', 'CampaignTable'];
 
-  // create method to return _fruitTableBox
   Box get fruitTableBox => _fruitTableBox;
   Box get campaignTableBox => _campaignTableBox;
   Box get syncDataBox => _syndDataBox;
 
   // Get all items from the database
   List<Map<String, dynamic>> getAllFromLocal() {
-    var data = fruitTableBox.values.toList();
+    var data = fruitTableBox.values.where((item) => item['isDeleted'] == false).toList();
+    // var data = fruitTableBox.values.toList();
 
     final items = data.map((value) {
       return {
@@ -23,7 +23,7 @@ class CustomLocal {
         "quantity": value['quantity'],
         "createdAt": value['createdAt'],
         "updatedAt": value['updatedAt'],
-        'isDeleted': value['isDeleted'],
+        'price': value['price'],
       };
     }).toList();
 
@@ -32,7 +32,7 @@ class CustomLocal {
 
   // Retrieve a single item from the database by using its key
   // Our app won't use this function but I put it here for your reference
-  Map<String, dynamic> getByIdFromLocal(String idItem) {
+  Map<String, dynamic> getByIdFromLocal(int idItem) {
     var keyItem = fruitTableBox.keys.firstWhere(
       (element) => fruitTableBox.get(element)['id'] == idItem,
       orElse: () => null,
@@ -70,85 +70,178 @@ class CustomLocal {
   }
 
   // Delete a single item
-  Future<String> deleteItemFromLocal(String itemKey) async {
+  Future<String> deleteItemFromLocal(int itemKey) async {
     var keyBoxItem = fruitTableBox.keys.firstWhere(
       (element) => fruitTableBox.get(element)['id'] == itemKey,
       orElse: () => null,
     );
     if (keyBoxItem == null) return "not_found";
 
-    await fruitTableBox.delete(keyBoxItem);
+    var item = fruitTableBox.get(keyBoxItem);
+    await fruitTableBox.put(keyBoxItem, {
+      ...item,
+      'isDeleted': true,
+      'updatedAt': DateTime.now().toString(),
+    });
 
     return "deleted";
   }
 
-  // ----------------- Transaction -----------------
-  // faz um get de todos os itens em fruitTableBox baseado em uma data x e retorna uma lista de mapas desses dados
-  List<Map<String, dynamic>> getLocalAllItemsByDate(String date) {
-    var data = fruitTableBox.values.where((element) => element['createdAt'] == date).toList();
+  // ------ GET PARA A API --------------------------
 
-    final items = data.map((value) {
-      return {
-        "id": value["id"],
-        "name": value["name"],
-        "quantity": value['quantity'],
-        "createdAt": value['createdAt'],
-        "updatedAt": value['updatedAt'],
-        'isDeleted': value['isDeleted'],
-      };
-    }).toList();
-
-    return items;
-  }
-
-  // pega a última data de atualização dos dados
-  int getLastSyncUpdate() {
+  int getLastSyncUpdate(String direction) {
     var lastDate = syncDataBox.get(0);
-    String date = "2023-01-20T00:00:00";
+
+    String date = "2023-01-25T00:00:00";
     DateTime parsedDate = DateTime.parse(date);
 
     var timestamp = parsedDate.millisecondsSinceEpoch;
 
-    return lastDate == null ? timestamp : lastDate['toRemote']['date'];
+    int result = lastDate == null ? timestamp : lastDate[direction]['date'];
+
+    return result;
   }
 
-  // seta a última data de atualização dos dados
-  int setLastUpdateDate(int timestamp) {
-    syncDataBox.put('lastUpdateDate', timestamp);
-    return timestamp;
+  Future<void> setLastSyncUpdate(int timestamp, List<Object> list, String direction) async {
+    var syncBox = syncDataBox.get(0);
+
+    if (syncBox == null) {
+      await syncDataBox.add({
+        'fromRemote': {
+          'date': direction == 'fromRemote' ? timestamp : 0,
+          'quantityItems': direction == 'fromRemote' ? list.length : 0,
+        },
+        'toRemote': {
+          'date': direction == 'fromRemote' ? timestamp : 0,
+          'quantityItems': direction == 'fromRemote' ? list.length : 0,
+        },
+      });
+    } else {
+      syncBox[direction]['date'] = timestamp;
+      syncBox[direction]['quantityItems'] = list.length;
+
+      await syncDataBox.put(0, syncBox);
+    }
   }
 
   // faz um update no banco local com os dados que vieram do servidor
   Future<void> updateAllLocalItems(List<Map<String, dynamic>> items) async {
     for (var item in items) {
-      if (_listOpenBoxes.contains(item['tableName'])) {
-        var tableName = _listOpenBoxes.firstWhere((boxName) => boxName == item['tableName']);
+      if (await Hive.boxExists(item['tableName']) && Hive.box(item['tableName']).isOpen) {
+        var box = Hive.box(item['tableName']);
 
-        if (tableName == 'FruitTable') {
-          handleUpdateLocalItem(item['row'], fruitTableBox);
-        } else if (tableName == 'CampaignTable') {
-          handleUpdateLocalItem(item['row'], campaignTableBox);
+        // if (tableName == 'FruitTable') {
+        if (item['row'] != null) {
+          handleUpdateLocalItem(item['row'], box, false);
+        } else {
+          handleUpdateLocalItem(item['rowDeleted'], box, true);
         }
+        // } else if (tableName == 'CampaignTable') {
+        //   if (item['row'] != null) {
+        //     handleUpdateLocalItem(item['row'], campaignTableBox, false);
+        //   } else {
+        //     handleUpdateLocalItem(item['rowDeleted'], campaignTableBox, true);
+        //   }
+        // }
       } else {
-        print('Não existe essa tabela no banco local');
+        print('Não existe - TO-DO: criar tabela');
       }
     }
   }
 
-  void handleUpdateLocalItem(Map<String, dynamic> newItem, Box<dynamic> box) {
+  void handleUpdateLocalItem(Map<String, dynamic> newItem, Box<dynamic> box, bool isDelete) {
     var keyItem = box.keys.firstWhere(
       (oldItem) => box.get(oldItem)['id'] == newItem['id'],
       orElse: () => null,
     );
 
-    if (keyItem != null) {
-      print(box.get(keyItem));
-      print(newItem);
-      box.put(keyItem, {...newItem, 'updatedAt': DateTime.now().toString()});
+    if (isDelete) {
+      if (keyItem != null) box.delete(keyItem);
     } else {
-      // PS. Add com o ID que veio do Banco Remoto
-      print(newItem);
-      box.add(newItem);
+      if (keyItem != null) {
+        // var newItemDate = DateTime.parse(newItem['updatedAt']).millisecondsSinceEpoch;
+        // var oldItemDate = DateTime.parse(box.get(keyItem)['updatedAt']).millisecondsSinceEpoch;
+
+        // if (newItemDate > oldItemDate) {
+        box.put(keyItem, {...newItem, 'updatedAt': DateTime.now().toString()});
+        // }
+      } else {
+        box.add({...newItem, 'isDeleted': false});
+      }
+    }
+  }
+
+  // ======================= POST PARA A API =======================
+
+  // faz um get de todos os itens em fruitTableBox baseado em uma data x e retorna uma lista de mapas desses dados
+  List<dynamic> getAllLocalItemsByDate(int timestamp) {
+    var itemsToSync = [];
+
+    for (String boxName in _listOpenBoxes) {
+      var boxHive = Hive.box(boxName);
+
+      var keysItems = boxHive.keys.toList();
+
+      if (keysItems.isNotEmpty) {
+        for (int key in keysItems) {
+          var item = boxHive.get(key) as Map;
+
+          var itemDate = DateTime.parse(item['updatedAt']).millisecondsSinceEpoch;
+
+          if (itemDate > timestamp) {
+            if (item['isDeleted'] == true) {
+              itemsToSync.add({
+                'tableName': boxName,
+                'rowDeleted': {'id': item['id']},
+              });
+
+              boxHive.delete(key);
+            } else {
+              var itemToSend = {...item};
+              itemToSend.remove('isDeleted');
+              itemToSend.remove('updatedAt');
+
+              itemsToSync.add({
+                'tableName': boxName,
+                'row': itemToSend,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return itemsToSync;
+
+    // final items = data.map((value) {
+    //   return {
+    //     "id": value["id"],
+    //     "name": value["name"],
+    //     "quantity": value['quantity'],
+    //     "createdAt": value['createdAt'],
+    //     "updatedAt": value['updatedAt'],
+    //     'isDeleted': value['isDeleted'],
+    //   };
+    // }).toList();
+
+    // return items;
+  }
+
+// Esse método foi criado para  mudar o DDL da tabela mas foi abortado
+  Future<void> configureAttributes(Box box, String attr, String action) async {
+    var keysBoxe = box.keys.toList();
+
+    if (keysBoxe.isNotEmpty) {
+      for (var key in keysBoxe) {
+        var item = box.get(key);
+
+        if (action == 'add') {
+          item[attr] = null;
+        } else {
+          await item.remove(attr);
+        }
+        await box.put(key, item);
+      }
     }
   }
 }

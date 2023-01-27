@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 // import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -8,13 +9,13 @@ void main() async {
 
   await Hive.initFlutter();
 
-  // await Hive.deleteBoxFromDisk('fruits_table_box');
-  // await Hive.deleteBoxFromDisk('campaign_table_box');
+  // await Hive.deleteBoxFromDisk('FruitTable');
+  // await Hive.deleteBoxFromDisk('CampaignTable');
   // await Hive.deleteBoxFromDisk('sync_data_box');
   // await Hive.deleteFromDisk();
 
-  await Hive.openBox('fruits_table_box');
-  await Hive.openBox('campaign_table_box');
+  await Hive.openBox('FruitTable');
+  await Hive.openBox('CampaignTable');
   await Hive.openBox('sync_data_box');
 
   runApp(const MyApp());
@@ -48,14 +49,12 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _items = [];
   final FruitController _fruitController = FruitController();
 
-  // final _fruitTableBox = Hive.box('fruits_table_box');
+  // final _fruitTableBox = Hive.box('FruitTable');
 
   @override
   void initState() {
     super.initState();
-    _fruitController.syncTransactions().then(
-          (_) => _refreshItems(),
-        );
+    _fruitController.syncTransactions().then((_) => _refreshItems());
   }
 
   @override
@@ -81,18 +80,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Update a single item
-  Future<void> _updateItem(String itemKey, Map<String, dynamic> item) async {
+  Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
     Map<String, dynamic> fruit = {
       'name': item['name'],
       'quantity': item['quantity'],
     };
 
-    await _fruitController.updateItem('/put', int.parse(itemKey), fruit);
+    await _fruitController.updateItem('/put', itemKey, fruit);
     _refreshItems(); // Update the UI
   }
 
   // Delete a single item
-  Future<void> _deleteItem(String itemKey) async {
+  Future<void> _deleteItem(int itemKey) async {
     await _fruitController.deleteItem('/delete', itemKey);
 
     _refreshItems(); // update the UI
@@ -108,7 +107,7 @@ class _HomePageState extends State<HomePage> {
 
   // This function will be triggered when the floating button is pressed
   // It will also be triggered when you want to update an item
-  void _showForm(BuildContext ctx, String? itemKey) async {
+  void _showForm(BuildContext ctx, int? itemKey) async {
     // itemKey == null -> create new item
     // itemKey != null -> update an existing item
     if (itemKey != null) {
@@ -181,7 +180,7 @@ class _HomePageState extends State<HomePage> {
       body: _items.isEmpty
           ? const Center(
               child: Text(
-                'No Data',
+                'Sem dados para mostrar',
                 style: TextStyle(fontSize: 30),
               ),
             )
@@ -196,7 +195,9 @@ class _HomePageState extends State<HomePage> {
                   elevation: 3,
                   child: ListTile(
                       title: Text(currentItem['name']),
-                      subtitle: Text(currentItem['quantity'].toString()),
+                      subtitle: Text(
+                        'Quantidade: ${currentItem['quantity'].toString()} | Preço: ${currentItem['price'].toString() ?? ""}',
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -206,7 +207,32 @@ class _HomePageState extends State<HomePage> {
                           // Delete button
                           IconButton(
                             icon: const Icon(Icons.delete),
-                            onPressed: () => _deleteItem(currentItem['id'].toString()),
+                            // onPressed: () => _deleteItem(currentItem['id'].toString()),
+                            onPressed: () {
+                              showCupertinoDialog(
+                                context: context,
+                                builder: (BuildContext context) {
+                                  return CupertinoAlertDialog(
+                                    title: const Text('Excluir Item'),
+                                    content: Text('Deseja excluir ${currentItem['name']}?'),
+                                    actions: <Widget>[
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(false),
+                                        child: const Text('Cancelar'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.of(context).pop(true),
+                                        child: const Text('Excluir'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ).then((confirm) {
+                                if (confirm) {
+                                  _deleteItem(currentItem['id']);
+                                }
+                              });
+                            },
                           ),
                         ],
                       )),

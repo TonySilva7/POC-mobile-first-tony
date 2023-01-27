@@ -29,7 +29,7 @@ class FruitController {
   }
 
   // Get by id if connected from api else from local
-  Future<Map<String, dynamic>> getItemById(String id) async {
+  Future<Map<String, dynamic>> getItemById(int id) async {
     return _customLocal.getByIdFromLocal(id);
   }
 
@@ -55,33 +55,33 @@ class FruitController {
   }
 
   // Delete item if connected from api else from local
-  Future<String> deleteItem(String path, String id) async {
+  Future<String> deleteItem(String path, int id) async {
     var res = await _customLocal.deleteItemFromLocal(id);
     return res;
   }
 
-  // verify if exists transaction to sync and make it based on verb
   Future<void> syncTransactions() async {
-    int lastSync = _customLocal.getLastSyncUpdate();
+    int lastSyncFromRemote = _customLocal.getLastSyncUpdate('fromRemote');
     // pega dados remotos
     List<Map<String, dynamic>> listItemFromRemote = await _customDio.getAllFromRemoteByDate(
       '/get-db',
-      lastSync,
+      lastSyncFromRemote,
     );
 
-    // pega dados locais
-    // List<Map<String, dynamic>> listItemFromLocal = _customLocal.getLocalAllItemsByDate('2023-01-20 00:00:00');
-
-    // Atualiza dados locais
     if (listItemFromRemote.isNotEmpty) {
       await _customLocal.updateAllLocalItems(listItemFromRemote);
-      // print(listItemFromRemote);
 
-      // TO-DO: grava data da ultima sincronização
-
+      int timestamp = DateTime.now().millisecondsSinceEpoch;
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote, 'fromRemote');
     }
 
-    // Atualiza dados remotos
-    // if (listItemFromLocal.isNotEmpty) {}
+    // pega dados locais
+    int lastSyncToRemote = _customLocal.getLastSyncUpdate('toRemote');
+    var listItemFromLocal = _customLocal.getAllLocalItemsByDate(lastSyncToRemote);
+
+    print(listItemFromLocal);
+
+    // TO-DO - enviar dados locais para o servidor
+    // TO-DO - Atualizar o syncToRemote com setLastSyncUpdate
   }
 }
