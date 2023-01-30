@@ -72,7 +72,7 @@ class FruitController {
       await _customLocal.updateAllLocalItems(listItemFromRemote);
 
       int timestamp = DateTime.now().millisecondsSinceEpoch;
-      await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote, 'fromRemote');
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'fromRemote');
     }
 
     // pega dados locais
@@ -81,7 +81,12 @@ class FruitController {
 
     print(listItemFromLocal);
 
-    // TO-DO - enviar dados locais para o servidor
-    // TO-DO - Atualizar o syncToRemote com setLastSyncUpdate
+    if (listItemFromLocal.isNotEmpty) {
+      // TO-DO - enviar dados locais para o servidor
+      await _customDio.createItemFromRemote('/post', listItemFromLocal);
+      // TO-DO - Atualizar o syncToRemote com setLastSyncUpdate
+      var timestamp = DateTime.now().millisecondsSinceEpoch;
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
+    }
   }
 }

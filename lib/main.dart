@@ -9,13 +9,13 @@ void main() async {
 
   await Hive.initFlutter();
 
-  // await Hive.deleteBoxFromDisk('FruitTable');
-  // await Hive.deleteBoxFromDisk('CampaignTable');
+  // await Hive.deleteBoxFromDisk('TestOffline');
+  // await Hive.deleteBoxFromDisk('Campaigns');
   // await Hive.deleteBoxFromDisk('sync_data_box');
   // await Hive.deleteFromDisk();
 
-  await Hive.openBox('FruitTable');
-  await Hive.openBox('CampaignTable');
+  await Hive.openBox('TestOffline');
+  await Hive.openBox('Campaigns');
   await Hive.openBox('sync_data_box');
 
   runApp(const MyApp());
@@ -49,7 +49,7 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _items = [];
   final FruitController _fruitController = FruitController();
 
-  // final _fruitTableBox = Hive.box('FruitTable');
+  // final _fruitTableBox = Hive.box('TestOffline');
 
   @override
   void initState() {

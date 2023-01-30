@@ -1,11 +1,11 @@
 import 'package:hive/hive.dart';
 
 class CustomLocal {
-  final _fruitTableBox = Hive.box('FruitTable');
-  final _campaignTableBox = Hive.box('CampaignTable');
+  final _fruitTableBox = Hive.box('TestOffline');
+  final _campaignTableBox = Hive.box('Campaigns');
   final _syndDataBox = Hive.box('sync_data_box');
 
-  final List<String> _listOpenBoxes = ['FruitTable', 'CampaignTable'];
+  final List<String> _listOpenBoxes = ['TestOffline', 'Campaigns'];
 
   Box get fruitTableBox => _fruitTableBox;
   Box get campaignTableBox => _campaignTableBox;
@@ -102,23 +102,23 @@ class CustomLocal {
     return result;
   }
 
-  Future<void> setLastSyncUpdate(int timestamp, List<Object> list, String direction) async {
+  Future<void> setLastSyncUpdate(int timestamp, int countList, String direction) async {
     var syncBox = syncDataBox.get(0);
 
     if (syncBox == null) {
       await syncDataBox.add({
         'fromRemote': {
           'date': direction == 'fromRemote' ? timestamp : 0,
-          'quantityItems': direction == 'fromRemote' ? list.length : 0,
+          'quantityItems': direction == 'fromRemote' ? countList : 0,
         },
         'toRemote': {
           'date': direction == 'fromRemote' ? timestamp : 0,
-          'quantityItems': direction == 'fromRemote' ? list.length : 0,
+          'quantityItems': direction == 'fromRemote' ? countList : 0,
         },
       });
     } else {
       syncBox[direction]['date'] = timestamp;
-      syncBox[direction]['quantityItems'] = list.length;
+      syncBox[direction]['quantityItems'] = countList;
 
       await syncDataBox.put(0, syncBox);
     }
@@ -130,13 +130,13 @@ class CustomLocal {
       if (await Hive.boxExists(item['tableName']) && Hive.box(item['tableName']).isOpen) {
         var box = Hive.box(item['tableName']);
 
-        // if (tableName == 'FruitTable') {
+        // if (tableName == 'TestOffline') {
         if (item['row'] != null) {
           handleUpdateLocalItem(item['row'], box, false);
         } else {
           handleUpdateLocalItem(item['rowDeleted'], box, true);
         }
-        // } else if (tableName == 'CampaignTable') {
+        // } else if (tableName == 'Campaigns') {
         //   if (item['row'] != null) {
         //     handleUpdateLocalItem(item['row'], campaignTableBox, false);
         //   } else {
@@ -192,17 +192,21 @@ class CustomLocal {
             if (item['isDeleted'] == true) {
               itemsToSync.add({
                 'tableName': boxName,
-                'rowDeleted': {'id': item['id']},
+                'rowDeleted': item['id'],
               });
 
               boxHive.delete(key);
             } else {
               var itemToSend = {...item};
+
               itemToSend.remove('isDeleted');
               itemToSend.remove('updatedAt');
+              itemToSend.remove('createdAt');
+              itemToSend.remove('id');
 
               itemsToSync.add({
                 'tableName': boxName,
+                'idItem': item['id'],
                 'row': itemToSend,
               });
             }
