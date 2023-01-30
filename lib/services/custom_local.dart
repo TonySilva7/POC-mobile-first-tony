@@ -12,15 +12,20 @@ class CustomLocal {
   Box get syncDataBox => _syndDataBox;
 
   // Get all items from the database
-  List<Map<String, dynamic>> getAllFromLocal() {
-    var data = fruitTableBox.values.where((item) => item['isDeleted'] == false).toList();
+  List<Map<String, dynamic>> getAllFromLocal(String boxName) {
+    var data = [];
+    if (boxName == fruitTableBox.name) {
+      data = fruitTableBox.values.where((item) => item['isDeleted'] == false).toList();
+    } else {
+      data = campaignTableBox.values.where((item) => item['isDeleted'] == false).toList();
+    }
     // var data = fruitTableBox.values.toList();
 
     final items = data.map((value) {
       return {
         "id": value["id"],
         "name": value["name"],
-        "quantity": value['quantity'],
+        "quantity": value['quantity'] ?? value['goalValue'],
         "createdAt": value['createdAt'],
         "updatedAt": value['updatedAt'],
         'price': value['price'],
@@ -32,12 +37,14 @@ class CustomLocal {
 
   // Retrieve a single item from the database by using its key
   // Our app won't use this function but I put it here for your reference
-  Map<String, dynamic> getByIdFromLocal(int idItem) {
-    var keyItem = fruitTableBox.keys.firstWhere(
-      (element) => fruitTableBox.get(element)['id'] == idItem,
+  Map<String, dynamic> getByIdFromLocal(int idItem, String boxName) {
+    Box myBox = boxName == fruitTableBox.name ? fruitTableBox : campaignTableBox;
+    var keyItem = myBox.keys.firstWhere(
+      (element) => myBox.get(element)['id'] == idItem,
       orElse: () => null,
     );
-    final item = keyItem != null ? fruitTableBox.get(keyItem) : {};
+
+    final item = keyItem != null ? myBox.get(keyItem) : {};
     return item.isNotEmpty ? Map.from(item) : {};
   }
 
@@ -55,10 +62,11 @@ class CustomLocal {
   }
 
   // Update a single item
-  Future<void> updateItemLocal(int id, Map<String, dynamic> item) async {
+  Future<void> updateItemLocal(int id, Map<String, dynamic> item, String boxName) async {
+    Box myBox = boxName == fruitTableBox.name ? fruitTableBox : campaignTableBox;
     // get item by id
-    var keyItem = fruitTableBox.keys.firstWhere((element) => fruitTableBox.get(element)['id'] == id);
-    var tempItem = fruitTableBox.get(keyItem);
+    var keyItem = myBox.keys.firstWhere((element) => myBox.get(element)['id'] == id);
+    var tempItem = myBox.get(keyItem);
 
     Map<String, dynamic> upItem = {
       ...tempItem,
@@ -66,7 +74,7 @@ class CustomLocal {
       'updatedAt': DateTime.now().toString(),
     };
 
-    fruitTableBox.put(keyItem, upItem);
+    myBox.put(keyItem, upItem);
   }
 
   // Delete a single item
@@ -247,5 +255,9 @@ class CustomLocal {
         await box.put(key, item);
       }
     }
+  }
+
+  Future<void> updateIdsLocalFromApi(Map<String, int> Items) async {
+    print(Items.keys.toList());
   }
 }

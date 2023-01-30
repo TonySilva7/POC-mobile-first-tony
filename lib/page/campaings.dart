@@ -1,65 +1,24 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-// import 'package:hive/hive.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+
 import 'package:poc_offline_first/controller/fruits_controller.dart';
-import 'package:poc_offline_first/page/campaings.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  await Hive.initFlutter();
-
-  await Hive.deleteBoxFromDisk('TestOffline');
-  await Hive.deleteBoxFromDisk('Campaigns');
-  await Hive.deleteBoxFromDisk('sync_data_box');
-  await Hive.deleteFromDisk();
-
-  await Hive.openBox('TestOffline');
-  await Hive.openBox('Campaigns');
-  await Hive.openBox('sync_data_box');
-
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class Campaigns extends StatefulWidget {
+  const Campaigns({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'POC Offline First',
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-      ),
-      home: const HomePage(),
-      routes: {
-        '/home': (context) => const HomePage(),
-        '/campaigns': (context) => const Campaigns(),
-      },
-    );
-  }
+  State<Campaigns> createState() => _CampaignsState();
 }
 
-// Home Page
-class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
+class _CampaignsState extends State<Campaigns> {
   List<Map<String, dynamic>> _items = [];
   final FruitController _fruitController = FruitController();
   // TextFields' controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
-  // ignore: non_constant_identifier_names
-  final String TABLE_NAME = 'TestOffline';
 
-  // final _fruitTableBox = Hive.box('TestOffline');
+  // ignore: non_constant_identifier_names
+  final String TABLE_NAME = 'Campaigns';
 
   @override
   void initState() {
@@ -69,7 +28,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    Hive.close();
+    // Hive.close();
     super.dispose();
   }
 
@@ -93,7 +52,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
     Map<String, dynamic> fruit = {
       'name': item['name'],
-      'quantity': item['quantity'],
+      'goalValue': item['goalValue'],
     };
 
     await _fruitController.updateItem('/put', itemKey, fruit, TABLE_NAME);
@@ -111,8 +70,6 @@ class _HomePageState extends State<HomePage> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Um item foi removido')));
   }
 
-  // This function will be triggered when the floating button is pressed
-  // It will also be triggered when you want to update an item
   void _showForm(BuildContext ctx, int? itemKey) async {
     // itemKey == null -> create new item
     // itemKey != null -> update an existing item
@@ -120,7 +77,8 @@ class _HomePageState extends State<HomePage> {
       final Map<String, dynamic> fruit = await _fruitController.getItemById(itemKey, TABLE_NAME);
 
       _nameController.text = fruit.isNotEmpty ? fruit['name'] : _nameController.text;
-      _quantityController.text = fruit.isNotEmpty ? fruit['quantity'].toString() : _quantityController.text;
+      _quantityController.text =
+          fruit.isNotEmpty ? (fruit['quantity'] ?? fruit['goalValue']).toString() : _quantityController.text;
     }
 
     showModalBottomSheet(
@@ -158,7 +116,7 @@ class _HomePageState extends State<HomePage> {
                       // update an existing item
                       if (itemKey != null) {
                         _updateItem(itemKey,
-                            {'name': _nameController.text.trim(), 'quantity': _quantityController.text.trim()});
+                            {'name': _nameController.text.trim(), 'goalValue': _quantityController.text.trim()});
                       }
 
                       // Clear the text fields
@@ -179,54 +137,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // return an Scaffold with elements like fruits
     return Scaffold(
-      drawer: Drawer(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.only(top: 50, bottom: 20),
-              color: Theme.of(context).primaryColor,
-              child: const Padding(
-                padding: EdgeInsets.only(left: 20),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Menu',
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.apple),
-              title: const Text('Frutas'),
-              // navigate to home page
-              onTap: () => Navigator.of(context).pushNamed('/home'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.monetization_on_rounded),
-              title: const Text('Vaquinhas'),
-              onTap: () => Navigator.of(context).pushNamed('/campaigns'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.sync),
-              title: const Text('Sincronizar'),
-              onTap: () async {
-                await _fruitController.syncTransactions();
-                _refreshItems();
-              },
-            ),
-          ],
-        ),
-      ),
       appBar: AppBar(
-        title: const Text('Frutas'),
+        title: const Text('Campanhas'),
       ),
-
       body: _items.isEmpty
           ? const Center(
               child: Text(
@@ -289,10 +204,6 @@ class _HomePageState extends State<HomePage> {
                 );
               }),
       // Add new item button
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showForm(context, null),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }

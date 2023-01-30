@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 
 import 'package:poc_offline_first/services/custom_dio.dart';
 import 'package:poc_offline_first/services/custom_local.dart';
@@ -21,22 +23,22 @@ class FruitController {
   }
 
   // Get all items if connected from api else from local
-  List<Map<String, dynamic>> getAllItems() {
+  List<Map<String, dynamic>> getAllItems(String boxName) {
     // bool isConnected = await checkInternetConnection();
 
-    var fruits = _customLocal.getAllFromLocal();
+    var fruits = _customLocal.getAllFromLocal(boxName.toLowerCase());
     return fruits;
   }
 
   // Get by id if connected from api else from local
-  Future<Map<String, dynamic>> getItemById(int id) async {
-    return _customLocal.getByIdFromLocal(id);
+  Future<Map<String, dynamic>> getItemById(int id, String boxName) async {
+    return _customLocal.getByIdFromLocal(id, boxName.toLowerCase());
   }
 
   // Create item if connected from api else from local
   Future<int> createItem(String path, Map<String, dynamic> item) async {
     Map<String, dynamic> fruit = {
-      'id': '${DateTime.now().millisecondsSinceEpoch}',
+      'id': -Random().nextInt(1000),
       'createdAt': DateTime.now().toString(),
       'updatedAt': DateTime.now().toString(),
       'name': item['name'],
@@ -50,8 +52,8 @@ class FruitController {
   }
 
   // Update item if connected from api else from local
-  Future<void> updateItem(String path, int id, Map<String, dynamic> item) async {
-    return await _customLocal.updateItemLocal(id, item);
+  Future<void> updateItem(String path, int id, Map<String, dynamic> item, String boxName) async {
+    return await _customLocal.updateItemLocal(id, item, boxName.toLowerCase());
   }
 
   // Delete item if connected from api else from local
@@ -61,8 +63,14 @@ class FruitController {
   }
 
   Future<void> syncTransactions() async {
+    await handleSyncFromRemote();
+
+    await handleSyncToRemote();
+  }
+
+  Future<void> handleSyncFromRemote() async {
     int lastSyncFromRemote = _customLocal.getLastSyncUpdate('fromRemote');
-    // pega dados remotos
+
     List<Map<String, dynamic>> listItemFromRemote = await _customDio.getAllFromRemoteByDate(
       '/get-db',
       lastSyncFromRemote,
@@ -74,17 +82,18 @@ class FruitController {
       int timestamp = DateTime.now().millisecondsSinceEpoch;
       await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'fromRemote');
     }
+  }
 
-    // pega dados locais
+  Future<void> handleSyncToRemote() async {
     int lastSyncToRemote = _customLocal.getLastSyncUpdate('toRemote');
     var listItemFromLocal = _customLocal.getAllLocalItemsByDate(lastSyncToRemote);
 
-    print(listItemFromLocal);
-
     if (listItemFromLocal.isNotEmpty) {
-      // TO-DO - enviar dados locais para o servidor
-      await _customDio.createItemFromRemote('/post', listItemFromLocal);
-      // TO-DO - Atualizar o syncToRemote com setLastSyncUpdate
+      Response response = await _customDio.createItemFromRemote('/post', listItemFromLocal);
+      var items = response.data;
+
+      await _customLocal.updateIdsLocalFromApi(items);
+
       var timestamp = DateTime.now().millisecondsSinceEpoch;
       await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
     }
