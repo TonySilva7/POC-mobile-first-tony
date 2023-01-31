@@ -69,32 +69,37 @@ class FruitController {
   }
 
   Future<void> handleSyncFromRemote() async {
+    print('============================ INICIO ===========================================');
     int lastSyncFromRemote = _customLocal.getLastSyncUpdate('fromRemote');
+    print('Data enviada (GET): ${DateTime.fromMillisecondsSinceEpoch(lastSyncFromRemote, isUtc: true)}');
 
     List<Map<String, dynamic>> listItemFromRemote = await _customDio.getAllFromRemoteByDate(
       '/get-db',
       lastSyncFromRemote,
     );
+    print('Item recebido: $listItemFromRemote');
 
     if (listItemFromRemote.isNotEmpty) {
-      print('Item recebido: $listItemFromRemote');
-
       await _customLocal.updateAllLocalItems(listItemFromRemote);
 
       int timestamp = DateTime.now().millisecondsSinceEpoch;
+      print('Data gravada (GET): ${DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)}');
       await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'fromRemote');
     }
   }
 
   Future<void> handleSyncToRemote() async {
+    print('*********************************************************************************');
     int lastSyncToRemote = _customLocal.getLastSyncUpdate('toRemote');
+    print('Data consultada: ${DateTime.fromMillisecondsSinceEpoch(lastSyncToRemote, isUtc: true)}');
     var listItemFromLocal = _customLocal.getAllLocalItemsByDate(lastSyncToRemote);
-
-    print('Item enviado: $listItemFromLocal');
 
     if (listItemFromLocal.isNotEmpty) {
       Response response = await _customDio.createItemFromRemote('/post', listItemFromLocal);
+      print('Item enviado (POST): $listItemFromLocal');
+
       var data = response.data;
+      print('Ids recebidos de volta: $data');
 
       if (data.length > 0) {
         List<Map<String, dynamic>> listPayload = List<Map<String, dynamic>>.from(data);
@@ -102,7 +107,10 @@ class FruitController {
         await _customLocal.updateAllLocalItems(listPayload);
       }
       var timestamp = DateTime.now().millisecondsSinceEpoch;
+      print('Data gravada (POST): ${DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)}');
+
       await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'fromRemote');
     }
   }
 }
