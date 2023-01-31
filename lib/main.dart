@@ -10,10 +10,10 @@ void main() async {
 
   await Hive.initFlutter();
 
-  await Hive.deleteBoxFromDisk('TestOffline');
-  await Hive.deleteBoxFromDisk('Campaigns');
-  await Hive.deleteBoxFromDisk('sync_data_box');
-  await Hive.deleteFromDisk();
+  // await Hive.deleteBoxFromDisk('TestOffline');
+  // await Hive.deleteBoxFromDisk('Campaigns');
+  // await Hive.deleteBoxFromDisk('sync_data_box');
+  // await Hive.deleteFromDisk();
 
   await Hive.openBox('TestOffline');
   await Hive.openBox('Campaigns');
@@ -65,6 +65,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _fruitController.syncTransactions().then((_) => _refreshItems());
+    // _refreshItems();
   }
 
   @override

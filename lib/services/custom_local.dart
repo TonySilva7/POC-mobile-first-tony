@@ -141,8 +141,10 @@ class CustomLocal {
         // if (tableName == 'TestOffline') {
         if (item['row'] != null) {
           handleUpdateLocalItem(item['row'], box, false);
-        } else {
+        } else if (item['rowDeleted'] != null) {
           handleUpdateLocalItem(item['rowDeleted'], box, true);
+        } else {
+          handleUpdateLocalItem(item, box, false);
         }
         // } else if (tableName == 'Campaigns') {
         //   if (item['row'] != null) {
@@ -158,8 +160,8 @@ class CustomLocal {
   }
 
   void handleUpdateLocalItem(Map<String, dynamic> newItem, Box<dynamic> box, bool isDelete) {
-    var keyItem = box.keys.firstWhere(
-      (oldItem) => box.get(oldItem)['id'] == newItem['id'],
+    int? keyItem = box.keys.firstWhere(
+      (oldItem) => box.get(oldItem)['id'] as int == (newItem['id'] ?? newItem['localId']) as int,
       orElse: () => null,
     );
 
@@ -170,9 +172,12 @@ class CustomLocal {
         // var newItemDate = DateTime.parse(newItem['updatedAt']).millisecondsSinceEpoch;
         // var oldItemDate = DateTime.parse(box.get(keyItem)['updatedAt']).millisecondsSinceEpoch;
 
-        // if (newItemDate > oldItemDate) {
-        box.put(keyItem, {...newItem, 'updatedAt': DateTime.now().toString()});
-        // }
+        if (newItem['localId'] != null) {
+          var oldItem = box.get(keyItem);
+          box.put(keyItem, {...oldItem, 'id': newItem['remoteId']});
+        } else {
+          box.put(keyItem, {...newItem, 'updatedAt': DateTime.now().toString()});
+        }
       } else {
         box.add({...newItem, 'isDeleted': false});
       }
@@ -257,7 +262,7 @@ class CustomLocal {
     }
   }
 
-  Future<void> updateIdsLocalFromApi(Map<String, int> Items) async {
-    print(Items.keys.toList());
+  Future<void> updateIdsLocalFromApi(List<dynamic> Items) async {
+    print(Items);
   }
 }

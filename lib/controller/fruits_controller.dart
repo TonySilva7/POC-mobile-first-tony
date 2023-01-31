@@ -90,12 +90,16 @@ class FruitController {
 
     if (listItemFromLocal.isNotEmpty) {
       Response response = await _customDio.createItemFromRemote('/post', listItemFromLocal);
-      var items = response.data;
+      var data = response.data;
 
-      await _customLocal.updateIdsLocalFromApi(items);
+      if (data.length > 0) {
+        List<Map<String, dynamic>> listPayload = List<Map<String, dynamic>>.from(data);
 
-      var timestamp = DateTime.now().millisecondsSinceEpoch;
-      await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
+        await _customLocal.updateAllLocalItems(listPayload);
+
+        var timestamp = DateTime.now().millisecondsSinceEpoch;
+        await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
+      }
     }
   }
 }
