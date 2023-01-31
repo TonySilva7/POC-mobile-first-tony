@@ -98,30 +98,31 @@ class CustomLocal {
   // ------ GET PARA A API --------------------------
 
   int getLastSyncUpdate(String direction) {
-    var lastDate = syncDataBox.get(0);
+    var syncBox = syncDataBox.get(0);
 
-    String date = "2023-01-25T00:00:00";
-    DateTime parsedDate = DateTime.parse(date);
+    DateTime parsedDate = DateTime.parse("2023-01-29T00:00:00");
+    var timestampDefault = parsedDate.millisecondsSinceEpoch;
 
-    var timestamp = parsedDate.millisecondsSinceEpoch;
+    int timestamp = syncBox == null ? timestampDefault : syncBox[direction]['date'];
 
-    int result = lastDate == null ? timestamp : lastDate[direction]['date'];
-
-    return result;
+    return timestamp;
   }
 
   Future<void> setLastSyncUpdate(int timestamp, int countList, String direction) async {
     var syncBox = syncDataBox.get(0);
 
+    DateTime parsedDate = DateTime.parse("2023-01-30T00:00:00");
+    var timestampDefault = parsedDate.millisecondsSinceEpoch;
+
     if (syncBox == null) {
       await syncDataBox.add({
         'fromRemote': {
-          'date': direction == 'fromRemote' ? timestamp : 0,
+          'date': direction == 'fromRemote' ? timestamp : timestampDefault,
           'quantityItems': direction == 'fromRemote' ? countList : 0,
         },
         'toRemote': {
-          'date': direction == 'fromRemote' ? timestamp : 0,
-          'quantityItems': direction == 'fromRemote' ? countList : 0,
+          'date': direction == 'toRemote' ? timestamp : timestampDefault,
+          'quantityItems': direction == 'toRemote' ? countList : 0,
         },
       });
     } else {
@@ -146,13 +147,6 @@ class CustomLocal {
         } else {
           handleUpdateLocalItem(item, box, false);
         }
-        // } else if (tableName == 'Campaigns') {
-        //   if (item['row'] != null) {
-        //     handleUpdateLocalItem(item['row'], campaignTableBox, false);
-        //   } else {
-        //     handleUpdateLocalItem(item['rowDeleted'], campaignTableBox, true);
-        //   }
-        // }
       } else {
         print('Não existe - TO-DO: criar tabela');
       }
@@ -169,14 +163,15 @@ class CustomLocal {
       if (keyItem != null) box.delete(keyItem);
     } else {
       if (keyItem != null) {
-        // var newItemDate = DateTime.parse(newItem['updatedAt']).millisecondsSinceEpoch;
-        // var oldItemDate = DateTime.parse(box.get(keyItem)['updatedAt']).millisecondsSinceEpoch;
-
         if (newItem['localId'] != null) {
           var oldItem = box.get(keyItem);
           box.put(keyItem, {...oldItem, 'id': newItem['remoteId']});
         } else {
-          box.put(keyItem, {...newItem, 'updatedAt': DateTime.now().toString()});
+          var oldItem = box.get(keyItem);
+          var itemUP = {...oldItem, ...newItem, 'updatedAt': DateTime.now().toString()};
+          box.put(keyItem, itemUP);
+
+          print('Item Atualizado Local: $itemUP');
         }
       } else {
         box.add({...newItem, 'isDeleted': false});
@@ -229,19 +224,6 @@ class CustomLocal {
     }
 
     return itemsToSync;
-
-    // final items = data.map((value) {
-    //   return {
-    //     "id": value["id"],
-    //     "name": value["name"],
-    //     "quantity": value['quantity'],
-    //     "createdAt": value['createdAt'],
-    //     "updatedAt": value['updatedAt'],
-    //     'isDeleted': value['isDeleted'],
-    //   };
-    // }).toList();
-
-    // return items;
   }
 
 // Esse método foi criado para  mudar o DDL da tabela mas foi abortado
@@ -260,9 +242,5 @@ class CustomLocal {
         await box.put(key, item);
       }
     }
-  }
-
-  Future<void> updateIdsLocalFromApi(List<dynamic> Items) async {
-    print(Items);
   }
 }

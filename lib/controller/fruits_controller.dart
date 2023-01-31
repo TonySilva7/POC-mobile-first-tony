@@ -77,6 +77,8 @@ class FruitController {
     );
 
     if (listItemFromRemote.isNotEmpty) {
+      print('Item recebido: $listItemFromRemote');
+
       await _customLocal.updateAllLocalItems(listItemFromRemote);
 
       int timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -88,6 +90,8 @@ class FruitController {
     int lastSyncToRemote = _customLocal.getLastSyncUpdate('toRemote');
     var listItemFromLocal = _customLocal.getAllLocalItemsByDate(lastSyncToRemote);
 
+    print('Item enviado: $listItemFromLocal');
+
     if (listItemFromLocal.isNotEmpty) {
       Response response = await _customDio.createItemFromRemote('/post', listItemFromLocal);
       var data = response.data;
@@ -96,10 +100,9 @@ class FruitController {
         List<Map<String, dynamic>> listPayload = List<Map<String, dynamic>>.from(data);
 
         await _customLocal.updateAllLocalItems(listPayload);
-
-        var timestamp = DateTime.now().millisecondsSinceEpoch;
-        await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
       }
+      var timestamp = DateTime.now().millisecondsSinceEpoch;
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
     }
   }
 }

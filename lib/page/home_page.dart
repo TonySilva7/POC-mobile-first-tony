@@ -1,24 +1,26 @@
+// Home Page
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
+import 'package:hive/hive.dart';
 import 'package:poc_offline_first/controller/fruits_controller.dart';
 
-class Campaigns extends StatefulWidget {
-  const Campaigns({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
 
   @override
-  State<Campaigns> createState() => _CampaignsState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _CampaignsState extends State<Campaigns> {
+class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> _items = [];
   final FruitController _fruitController = FruitController();
   // TextFields' controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
-
   // ignore: non_constant_identifier_names
-  final String TABLE_NAME = 'Campaigns';
+  final String TABLE_NAME = 'TestOffline';
+
+  // final _fruitTableBox = Hive.box('TestOffline');
 
   @override
   void initState() {
@@ -29,7 +31,7 @@ class _CampaignsState extends State<Campaigns> {
 
   @override
   void dispose() {
-    // Hive.close();
+    Hive.close();
     super.dispose();
   }
 
@@ -53,7 +55,7 @@ class _CampaignsState extends State<Campaigns> {
   Future<void> _updateItem(int itemKey, Map<String, dynamic> item) async {
     Map<String, dynamic> fruit = {
       'name': item['name'],
-      'goalValue': item['goalValue'],
+      'quantity': item['quantity'],
     };
 
     await _fruitController.updateItem('/put', itemKey, fruit, TABLE_NAME);
@@ -71,6 +73,8 @@ class _CampaignsState extends State<Campaigns> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Um item foi removido')));
   }
 
+  // This function will be triggered when the floating button is pressed
+  // It will also be triggered when you want to update an item
   void _showForm(BuildContext ctx, int? itemKey) async {
     // itemKey == null -> create new item
     // itemKey != null -> update an existing item
@@ -78,8 +82,7 @@ class _CampaignsState extends State<Campaigns> {
       final Map<String, dynamic> fruit = await _fruitController.getItemById(itemKey, TABLE_NAME);
 
       _nameController.text = fruit.isNotEmpty ? fruit['name'] : _nameController.text;
-      _quantityController.text =
-          fruit.isNotEmpty ? (fruit['quantity'] ?? fruit['goalValue']).toString() : _quantityController.text;
+      _quantityController.text = fruit.isNotEmpty ? fruit['quantity'].toString() : _quantityController.text;
     }
 
     showModalBottomSheet(
@@ -117,7 +120,7 @@ class _CampaignsState extends State<Campaigns> {
                       // update an existing item
                       if (itemKey != null) {
                         _updateItem(itemKey,
-                            {'name': _nameController.text.trim(), 'goalValue': _quantityController.text.trim()});
+                            {'name': _nameController.text.trim(), 'quantity': _quantityController.text.trim()});
                       }
 
                       // Clear the text fields
@@ -138,11 +141,54 @@ class _CampaignsState extends State<Campaigns> {
 
   @override
   Widget build(BuildContext context) {
-    // return an Scaffold with elements like fruits
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Campanhas'),
+      drawer: Drawer(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 50, bottom: 20),
+              color: Theme.of(context).primaryColor,
+              child: const Padding(
+                padding: EdgeInsets.only(left: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Menu',
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.apple),
+              title: const Text('Frutas'),
+              // navigate to home page
+              onTap: () => Navigator.of(context).pushNamed('/home'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.monetization_on_rounded),
+              title: const Text('Vaquinhas'),
+              onTap: () => Navigator.of(context).pushNamed('/campaigns'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.sync),
+              title: const Text('Sincronizar'),
+              onTap: () async {
+                await _fruitController.syncTransactions();
+                _refreshItems();
+              },
+            ),
+          ],
+        ),
       ),
+      appBar: AppBar(
+        title: const Text('Frutas'),
+      ),
+
       body: _items.isEmpty
           ? const Center(
               child: Text(
@@ -205,6 +251,10 @@ class _CampaignsState extends State<Campaigns> {
                 );
               }),
       // Add new item button
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showForm(context, null),
+        child: const Icon(Icons.add),
+      ),
     );
   }
 }
