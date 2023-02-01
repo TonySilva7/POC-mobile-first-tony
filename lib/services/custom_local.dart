@@ -100,7 +100,7 @@ class CustomLocal {
   int getLastSyncUpdate(String direction) {
     var syncBox = syncDataBox.get(0);
 
-    DateTime parsedDate = DateTime.parse("2023-01-29T00:00:00");
+    DateTime parsedDate = DateTime.parse("2023-01-31T00:00:00");
     var timestampDefault = parsedDate.millisecondsSinceEpoch;
 
     int timestamp = syncBox == null ? timestampDefault : syncBox[direction]['date'];
@@ -111,7 +111,7 @@ class CustomLocal {
   Future<void> setLastSyncUpdate(int timestamp, int countList, String direction) async {
     var syncBox = syncDataBox.get(0);
 
-    DateTime parsedDate = DateTime.parse("2023-01-30T00:00:00");
+    DateTime parsedDate = DateTime.parse("2023-01-31T00:00:00");
     var timestampDefault = parsedDate.millisecondsSinceEpoch;
 
     if (syncBox == null) {
@@ -242,5 +242,34 @@ class CustomLocal {
         await box.put(key, item);
       }
     }
+  }
+
+  Future<void> testeDePerformance() async {
+    // var box = await Hive.openBox('myBox');
+    int items = 50000;
+
+    var start = DateTime.now();
+
+    // for (var i = 0; i < items; i++) {
+    //   await createItemFromLocal({'name': 'Uva $i', 'quantity': i, 'isDeleted': false});
+    // }
+
+    // for (var i = 0; i < items; i++) {
+    //   await fruitTableBox.put(i, {'name': 'Uva_edited $i', 'quantity': i, 'isDeleted': false});
+    // }
+
+    // for (var i = 0; i < items; i++) {
+    //   await fruitTableBox.delete(i);
+    // }
+
+    print(fruitTableBox.keys.map((e) => fruitTableBox.get(e)).toList());
+
+    var end = DateTime.now();
+    var duration = end.difference(start);
+
+    print('\n');
+    print('Deleção de $items registros levou $duration');
+
+    print('${fruitTableBox.keys.length} itens processados');
   }
 }

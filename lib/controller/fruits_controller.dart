@@ -66,6 +66,8 @@ class FruitController {
     await handleSyncFromRemote();
 
     await handleSyncToRemote();
+
+    // await _customLocal.testeDePerformance();
   }
 
   Future<void> handleSyncFromRemote() async {
@@ -85,6 +87,7 @@ class FruitController {
       int timestamp = DateTime.now().millisecondsSinceEpoch;
       print('Data gravada (GET): ${DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)}');
       await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'fromRemote');
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'toRemote');
     }
   }
 
@@ -95,8 +98,8 @@ class FruitController {
     var listItemFromLocal = _customLocal.getAllLocalItemsByDate(lastSyncToRemote);
 
     if (listItemFromLocal.isNotEmpty) {
+      print('Payload enviado (POST): $listItemFromLocal');
       Response response = await _customDio.createItemFromRemote('/post', listItemFromLocal);
-      print('Item enviado (POST): $listItemFromLocal');
 
       var data = response.data;
       print('Ids recebidos de volta: $data');
