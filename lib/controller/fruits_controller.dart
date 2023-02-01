@@ -72,7 +72,7 @@ class FruitController {
 
   Future<void> handleSyncFromRemote() async {
     print('============================ INICIO ===========================================');
-    int lastSyncFromRemote = _customLocal.getLastSyncUpdate('fromRemote');
+    int lastSyncFromRemote = _customLocal.getLastSyncUpdate();
     print('Data enviada (GET): ${DateTime.fromMillisecondsSinceEpoch(lastSyncFromRemote, isUtc: true)}');
 
     List<Map<String, dynamic>> listItemFromRemote = await _customDio.getAllFromRemoteByDate(
@@ -86,14 +86,13 @@ class FruitController {
 
       int timestamp = DateTime.now().millisecondsSinceEpoch;
       print('Data gravada (GET): ${DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)}');
-      await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'fromRemote');
-      await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'toRemote');
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromRemote.length, 'GET');
     }
   }
 
   Future<void> handleSyncToRemote() async {
     print('*********************************************************************************');
-    int lastSyncToRemote = _customLocal.getLastSyncUpdate('toRemote');
+    int lastSyncToRemote = _customLocal.getLastSyncUpdate();
     print('Data consultada: ${DateTime.fromMillisecondsSinceEpoch(lastSyncToRemote, isUtc: true)}');
     var listItemFromLocal = _customLocal.getAllLocalItemsByDate(lastSyncToRemote);
 
@@ -112,8 +111,7 @@ class FruitController {
       var timestamp = DateTime.now().millisecondsSinceEpoch;
       print('Data gravada (POST): ${DateTime.fromMillisecondsSinceEpoch(timestamp, isUtc: true)}');
 
-      await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'toRemote');
-      await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'fromRemote');
+      await _customLocal.setLastSyncUpdate(timestamp, listItemFromLocal.length, 'POST');
     }
   }
 }

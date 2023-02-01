@@ -97,37 +97,30 @@ class CustomLocal {
 
   // ------ GET PARA A API --------------------------
 
-  int getLastSyncUpdate(String direction) {
+  int getLastSyncUpdate() {
     var syncBox = syncDataBox.get(0);
 
     DateTime parsedDate = DateTime.parse("2023-01-31T00:00:00");
     var timestampDefault = parsedDate.millisecondsSinceEpoch;
 
-    int timestamp = syncBox == null ? timestampDefault : syncBox[direction]['date'];
+    int timestamp = syncBox == null ? timestampDefault : syncBox['date'];
 
     return timestamp;
   }
 
-  Future<void> setLastSyncUpdate(int timestamp, int countList, String direction) async {
+  Future<void> setLastSyncUpdate(int timestamp, int countList, String verb) async {
     var syncBox = syncDataBox.get(0);
-
-    DateTime parsedDate = DateTime.parse("2023-01-31T00:00:00");
-    var timestampDefault = parsedDate.millisecondsSinceEpoch;
 
     if (syncBox == null) {
       await syncDataBox.add({
-        'fromRemote': {
-          'date': direction == 'fromRemote' ? timestamp : timestampDefault,
-          'quantityItems': direction == 'fromRemote' ? countList : 0,
-        },
-        'toRemote': {
-          'date': direction == 'toRemote' ? timestamp : timestampDefault,
-          'quantityItems': direction == 'toRemote' ? countList : 0,
-        },
+        'date': timestamp,
+        'quantityItems': countList,
+        'verb': verb,
       });
     } else {
-      syncBox[direction]['date'] = timestamp;
-      syncBox[direction]['quantityItems'] = countList;
+      syncBox['date'] = timestamp;
+      syncBox['quantityItems'] = countList;
+      syncBox['verb'] = verb;
 
       await syncDataBox.put(0, syncBox);
     }
